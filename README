@@ -1,0 +1,11 @@
+Quadrotor Server: README
+Jeremy 
+
+Premise:
+Maintain a server and client model that (1) reads serial data from the quadrotor (over some serial protocol) and broadcasts the serial messages via UDP to any number of listening clients on other computers and (2) accept UDP requests from any number of clients and send these messages to the quadrotor.
+
+The architecture of this software is non-trivial: serial read calls block, and so do socket recv calls. Therefore, the architecture uses threading to acheive parallelism. 
+
+
+
+
