@@ -25,7 +25,7 @@ class MessageQueue:
         self.net_thread.daemon = True # Thread will exit if main thread exits
         self.net_thread.start()
 
-    def register(self, observer):
+    def register_class(self, observer):
         self.olist.append(observer)
     
     def register_callback(self, callback):
@@ -88,12 +88,30 @@ class _Quadrotor:
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.sock.bind((Config.host, Config.recv_port))        
 
-    def send(self, x):
-        # For some reason, this only works half of the time...
-        self.sock.sendto(x, ('<broadcast>', Config.recv_port))
+    def send(self, dictionary):
+        # Accepts a dictionary, parses into string
+        string = ""
+        for key in dictionary:
+            string += str(key) + " " + str(dictionary[key]) + " "
+        string += "\n"
+
+        # This doesn't have to be broadcast: change it to send to one computer...
+        self.sock.sendto(string, ('<broadcast>', Config.recv_port))
 
     def pop(self):
-        return self.queue.pop()
+        # Return a dictionary of values:
+        msg = self.queue.pop()
+        d = {}
+        if msg != None:
+            msg = msg.split()
+            # ['a','b','c','d'] -> {'a':'b', 'c':'d'}
+            for i in range(len(msg)):
+                if (i % 2) == 0:
+                    d[str(msg[i])] = int(msg[i+1])
+        return d
+
+    def register_callback(self, callback):
+        self.queue.register_callback(callback)
 
     def terminate(self):
         self.queue.terminate()
@@ -105,7 +123,6 @@ def Quadrotor(): return _quadrotor
 class Client:
     def __init__(self):
         self.qrotor = Quadrotor()
-
         self.thread = threading.Thread(target=self.run)
         self.daemon = True
         self.stop = threading.Event()
@@ -113,12 +130,14 @@ class Client:
 
     def run(self):
         print "Thread started"
+        counter = 0
         while (not self.stop.is_set()):
             x = self.qrotor.pop()
             print x
             time.sleep(1)
-            self.qrotor.send(x)
+            self.qrotor.send(str(counter) + ": " + x)
             time.sleep(1)
+            counter += 1
 
     def terminate(self):
         print "Terminating client."
@@ -126,13 +145,15 @@ class Client:
         self.thread.join()
         print "Client terminated."
 
-def sample_client():
-    # timer: send x every second
+def main_loop(client):
     while 1:
-        x = msg_queue.pop()
-        print x
-        time.sleep(1)
-    
+        try:
+            dummy = None
+        except (KeyboardInterrupt, SystemExit):
+            print "Main thread keyboard interrupt"
+            Quadrotor().terminate()
+            client.terminate()
+            sys.exit()
 
 if __name__ == "__main__":
     # Begin client.
