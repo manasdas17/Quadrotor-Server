@@ -65,13 +65,12 @@ class MessageQueue:
         while (not self.stop.is_set()):
             try: 
                 message, address = sock.recvfrom(8192)
-                print "Got data from", address, ":", message
+                # print "Got data from", address, ":", message
                 self.append(message)
 
             except (KeyboardInterrupt, SystemExit):
                 # Unfortunately, in Python, only the main thread receives SIGINT. This is why we use a special terminate flag
                 raise
-
 
     def terminate(self):
         print "Terminating network thread."
@@ -84,28 +83,41 @@ class _Quadrotor:
     def __init__(self):
         self.queue = MessageQueue()
         # Networking
-        
-    def send(self):
-        pass
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.sock.bind((Config.host, Config.recv_port))        
+
+    def send(self, x):
+        # For some reason, this only works half of the time...
+        self.sock.sendto(x, ('<broadcast>', Config.recv_port))
+
+    def pop(self):
+        return self.queue.pop()
+
+    def terminate(self):
+        self.queue.terminate()
 
 # Make Quadrotor a singleton
 _quadrotor = _Quadrotor()
 def Quadrotor(): return _quadrotor
 
-msg_queue = MessageQueue()
-
-
 class Client:
     def __init__(self):
+        self.qrotor = Quadrotor()
+
         self.thread = threading.Thread(target=self.run)
         self.daemon = True
         self.stop = threading.Event()
         self.thread.start()
 
     def run(self):
+        print "Thread started"
         while (not self.stop.is_set()):
-            x = msg_queue.pop()
+            x = self.qrotor.pop()
             print x
+            time.sleep(1)
+            self.qrotor.send(x)
             time.sleep(1)
 
     def terminate(self):
@@ -135,7 +147,7 @@ if __name__ == "__main__":
             dummy = None
         except (KeyboardInterrupt, SystemExit):
             print "Main thread keyboard interrupt"
-            msg_queue.terminate()
+            Quadrotor().terminate()
             client.terminate()
             sys.exit()
 

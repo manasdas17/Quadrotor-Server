@@ -6,39 +6,71 @@ import threading
 import sys
 from config import Config
 
-def network_thread(ser):
-    # We need to create a separate port from our broadcast port, otherwise we receive all of the broadcast messages!
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.bind((Config.host, Config.recv_port))
+class NetworkThread:
+    def __init__(self, ser):
+        # We need to create a separate port from our broadcast port, otherwise we receive all of the broadcast messages!
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.sock.bind((Config.host, Config.recv_port))
 
-    while 1:
-        try: 
-            message, address = sock.recvfrom(8192)
-            print "Got data from", address, ":", message
-            ser.write(message)
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
-            traceback.print_exc()
+        # Serial connection
+        self.ser = ser
+
+        # Set up threading
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
+        self.stop = threading.Event()
+        self.thread.start()
+
+    def run(self):
+        while 1:
+            try: 
+                # Can we add a timeout here?
+                message, address = self.sock.recvfrom(8192)
+                print "Got data from", address, ":", message
+                self.ser.write(message)
+            except (KeyboardInterrupt, SystemExit):
+                raise
+    
+    def terminate(self):
+        print "Terminating network thread."
+        self.stop.set()
+        self.thread.join()
+        print "Network thread terminated." 
 
 
+class SerialThread:
+    def __init__(self, ser):
+        # Set up socket network connection
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.sock.bind((Config.host, Config.bcast_port))
+        
+        # Serial
+        self.ser = ser
 
-def serial_thread(ser):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.bind((Config.host, Config.bcast_port))
+        # Set up threading
+        self.thread = threading.Thread(target=self.run)
+        self.stop = threading.Event()
+        self.thread.daemon = True
+        self.thread.start()
 
-    while 1:
-        try:
-            line = ser.readline()
-            sock.sendto(line, ('<broadcast>', Config.bcast_port))
-            print "Broadcasting:", line
-        except (KeyboardInterrupt, SystemExit):
-            raise
+    def run(self):
+        while (not self.stop.is_set()):
+            try:
+                line = self.ser.readline()
+                self.sock.sendto(line, ('<broadcast>', Config.bcast_port))
+                # print "Broadcasting:", line
+            except (KeyboardInterrupt, SystemExit):
+                raise
 
+    def terminate(self):
+        print "Terminating serial thread."
+        self.stop.set()
+        self.thread.join()
+        print "Serial thread terminated."
 
 if __name__ == "__main__":
     # Set up serial connection
@@ -50,8 +82,8 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # Set up threads
-    threading.Thread(target=serial_thread, args=(ser,)).start()
-    threading.Thread(target=network_thread, args=(ser,)).start()
+    ser_thread = SerialThread(ser)
+    net_thread = NetworkThread(ser)
     
     # Infinite loop
     while 1:
@@ -59,7 +91,8 @@ if __name__ == "__main__":
             dummy = None
         except (KeyboardInterrupt, SystemExit):
             print "Main thread keyboard interrupt"
-            msg_queue.terminate()
-            client.terminate()
+            PLEASESTOP
+            ser_thread.terminate()
+            net_thread.terminate()
             sys.exit()
 
