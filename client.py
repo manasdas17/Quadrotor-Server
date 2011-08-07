@@ -11,15 +11,19 @@ import sys
 # Also uses the observer pattern to update listeners, but you can also just call pop to return the newest element. If there is more than one person listening in, you might want to implement something other than "pop" that doesn't remove the last element but simply returns it...
 class MessageQueue:
     def __init__(self):
-        self.lock = threading.Lock()
-
         # Observers of the class
         self.olist = []
         self.fxnlist = []
 
         # Message queue
         self.queue = []
-        pass
+
+        # Initialize threading 
+        self.lock = threading.Lock()
+        self.stop = threading.Event()
+        self.net_thread = threading.Thread(target=self.network_thread)
+        self.net_thread.daemon = True # Thread will exit if main thread exits
+        self.net_thread.start()
 
     def register(self, observer):
         self.olist.append(observer)
@@ -51,7 +55,32 @@ class MessageQueue:
             f()
         pass
 
-class Quadcopter:
+    def network_thread(self):
+        # Listen for UDP messages from the server
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.bind((Config.host, Config.bcast_port))
+
+        while (not self.stop.is_set()):
+            try: 
+                message, address = sock.recvfrom(8192)
+                print "Got data from", address, ":", message
+                self.append(message)
+
+            except (KeyboardInterrupt, SystemExit):
+                # Unfortunately, in Python, only the main thread receives SIGINT. This is why we use a special terminate flag
+                raise
+
+
+    def terminate(self):
+        print "Terminating network thread."
+        self.stop.set()
+        self.net_thread.join()
+        print "Terminated network thread."
+
+# Quadrotor handles the dictionary processing...
+class _Quadrotor:
     def __init__(self):
         self.queue = MessageQueue()
         # Networking
@@ -59,27 +88,31 @@ class Quadcopter:
     def send(self):
         pass
 
+# Make Quadrotor a singleton
+_quadrotor = _Quadrotor()
+def Quadrotor(): return _quadrotor
 
 msg_queue = MessageQueue()
 
-def network_thread():
-    # Listen for UDP messages from the server
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sock.bind((Config.host, Config.bcast_port))
 
-    while 1:
-        try: 
-            message, address = sock.recvfrom(8192)
-            print "Got data from", address, ":", message
-            msg_queue.append(message)
+class Client:
+    def __init__(self):
+        self.thread = threading.Thread(target=self.run)
+        self.daemon = True
+        self.stop = threading.Event()
+        self.thread.start()
 
-        except (KeyboardInterrupt, SystemExit):
-            raise
-#        except:
-#            traceback.print_exc()
+    def run(self):
+        while (not self.stop.is_set()):
+            x = msg_queue.pop()
+            print x
+            time.sleep(1)
 
+    def terminate(self):
+        print "Terminating client."
+        self.stop.set()
+        self.thread.join()
+        print "Client terminated."
 
 def sample_client():
     # timer: send x every second
@@ -90,12 +123,20 @@ def sample_client():
     
 
 if __name__ == "__main__":
-    # Begin threads
-    threading.Thread(target=network_thread).start()
-    threading.Thread(target=sample_client).start()
+    # Begin client.
+    client = Client()
 
-    # Infinite loop while quadrotor is running
+    # Infinite loop while quadrotor is running.
+    # Note: It is difficult to end python threads gracefully, ESPECIALLY when the threads on blocking on I/O. 
+    # Unfortunately, we have to Ctrl-Z when server is not running, but Ctrl-C will work when server is up, thanks to terminate calls. This is because only the main thread receives Ctrl-C
+
     while 1:
-        pass
+        try:
+            dummy = None
+        except (KeyboardInterrupt, SystemExit):
+            print "Main thread keyboard interrupt"
+            msg_queue.terminate()
+            client.terminate()
+            sys.exit()
 
         

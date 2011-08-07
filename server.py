@@ -24,6 +24,7 @@ def network_thread(ser):
             traceback.print_exc()
 
 
+
 def serial_thread(ser):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -51,7 +52,14 @@ if __name__ == "__main__":
     # Set up threads
     threading.Thread(target=serial_thread, args=(ser,)).start()
     threading.Thread(target=network_thread, args=(ser,)).start()
-
+    
     # Infinite loop
     while 1:
-        pass
+        try:
+            dummy = None
+        except (KeyboardInterrupt, SystemExit):
+            print "Main thread keyboard interrupt"
+            msg_queue.terminate()
+            client.terminate()
+            sys.exit()
+
