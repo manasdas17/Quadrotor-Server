@@ -62,20 +62,14 @@ class MessageQueue:
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('<broadcast>', Config.bcast_port))
 
-        while (not self.stop.is_set()):
-            try: 
-                # Select idea borrowed from:
-                # http://code.activestate.com/recipes/577278-receive-udp-broadcasts/
-                result = select.select([self.sock],[],[])
-                message = result[0][0].recv(8192)
+        while (not self.stop.wait(1)):
+            # Select idea borrowed from:
+            # http://code.activestate.com/recipes/577278-receive-udp-broadcasts/
+            result = select.select([self.sock],[],[])
+            message = result[0][0].recv(8192)
 
-                if message != None:
-                    print "Message:", message
-                    self.append(message)
-
-            except (KeyboardInterrupt, SystemExit):
-                # Unfortunately, in Python, only the main thread receives SIGINT. This is why we use a special terminate flag
-                raise
+            if message != None:
+                self.append(message)
 
     def terminate(self):
         print "Terminating network thread."
@@ -99,7 +93,7 @@ class _Quadrotor:
         for key in dictionary:
             string += str(key) + " " + str(dictionary[key]) + " "
         string += "\n"
-
+        print "Send ", dictionary
         # This doesn't have to be broadcast: change it to send to one computer...
         self.sock.sendto(string, ('<broadcast>', Config.recv_port))
 
@@ -110,9 +104,13 @@ class _Quadrotor:
         if msg != None:
             msg = msg.split()
             # ['a','b','c','d'] -> {'a':'b', 'c':'d'}
-            for i in range(len(msg)):
-                if (i % 2) == 0:
-                    d[str(msg[i])] = int(msg[i+1])
+
+            try:
+                for i in range(len(msg)):
+                    if (i % 2) == 0:
+                        d[str(msg[i])] = int(msg[i+1])
+            except(IndexError):
+                print "Incoming message malformed: ", msg
         return d
 
     def register_callback(self, callback):
@@ -125,47 +123,17 @@ class _Quadrotor:
 _quadrotor = _Quadrotor()
 def Quadrotor(): return _quadrotor
 
-class Client:
-    def __init__(self):
-        # Set up quadrotor
-        self.qrotor = Quadrotor()
-        self.qrotor.register_callback(self.callback)
-
-        # Set up threading
-        self.thread = threading.Thread(target=self.run)
-        self.daemon = True
-        self.stop = threading.Event()
-        self.thread.start()
-
-    def callback(self):
-        print "Msg received!"
-
-    def run(self):
-        counter = 0
-        # Pop the top serial message from the quadrotor, wait one second, write the same message back, then wait another second.
-        while (not self.stop.is_set()):
-            x = self.qrotor.pop()
-            print "Received: ", x
-            time.sleep(1)
-            self.qrotor.send(x)
-            time.sleep(1)
-            counter += 1
-
-    def terminate(self):
-        print "Terminating client."
-        self.stop.set()
-        self.thread.join()
-        print "Client terminated."
-
 def main_loop(client):
-    while 1:
-        try:
-            dummy = None
-        except (KeyboardInterrupt, SystemExit):
-            print "Main thread keyboard interrupt"
-            Quadrotor().terminate()
-            client.terminate()
-            sys.exit()
+    try:
+        while 1:
+            pass
+    except (KeyboardInterrupt, SystemExit):
+        print "Main thread keyboard interrupt"
+        Quadrotor().terminate()
+        client.terminate()
+        sys.exit()
+
+from myclient import Client
 
 if __name__ == "__main__":
     # Begin client.

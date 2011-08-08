@@ -5,14 +5,15 @@ import serial
 import threading
 import sys
 from config import Config
+import select
 
 class NetworkThread:
     def __init__(self, ser):
         # We need to create a separate port from our broadcast port, otherwise we receive all of the broadcast messages!
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.bind((Config.host, Config.recv_port))
+        self.sock.bind(('<broadcast>', Config.recv_port))
+#        self.sock.setblocking(0)
 
         # Serial connection
         self.ser = ser
@@ -24,14 +25,13 @@ class NetworkThread:
         self.thread.start()
 
     def run(self):
-        while 1:
-            try: 
-                # Can we add a timeout here?
-                message, address = self.sock.recvfrom(8192)
+        while (not self.stop.wait(1)):
+            # Can we add a timeout here?
+            result = select.select([self.sock], [], [])
+            message, address = result[0][0].recvfrom(8192)
+            if message != None:
                 print "Received data from", address, ":", message
                 self.ser.write(message)
-            except (KeyboardInterrupt, SystemExit):
-                raise
     
     def terminate(self):
         print "Terminating network thread."
@@ -58,14 +58,11 @@ class SerialThread:
         self.thread.start()
 
     def run(self):
-        while (not self.stop.is_set()):
-            try:
-                line = self.ser.readline()
-                # line = "x 234 y 321 z 330 "
-                self.sock.sendto(line, ('<broadcast>', Config.bcast_port))
-                # print "Broadcasting:", line
-            except (KeyboardInterrupt, SystemExit):
-                raise
+        while (not self.stop.wait(1)):
+            line = self.ser.readline()
+            # line = "x 234 y 321 z 330 "
+            self.sock.sendto(line, ('<broadcast>', Config.bcast_port))
+            # print "Broadcasting:", line
 
     def terminate(self):
         print "Terminating serial thread."
@@ -97,13 +94,13 @@ if __name__ == "__main__":
     net_thread = NetworkThread(ser)
     
     # Infinite loop
-    while 1:
-        try:
-            dummy = None
-        except (KeyboardInterrupt, SystemExit):
-            print "Main thread keyboard interrupt"
-            PLEASESTOP
-            ser_thread.terminate()
-            net_thread.terminate()
-            sys.exit()
+    try:
+        while 1:
+            pass
+    except (KeyboardInterrupt, SystemExit):
+        print "Main thread keyboard interrupt"
+        sys.exit()
+        ser_thread.terminate()
+        net_thread.terminate()
+
 
