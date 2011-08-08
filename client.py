@@ -6,6 +6,7 @@ import threading
 from config import Config
 import time
 import sys
+import select
 
 # Thread-safe message queue
 # Also uses the observer pattern to update listeners, but you can also just call pop to return the newest element. If there is more than one person listening in, you might want to implement something other than "pop" that doesn't remove the last element but simply returns it...
@@ -57,16 +58,20 @@ class MessageQueue:
 
     def network_thread(self):
         # Listen for UDP messages from the server
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        sock.bind((Config.host, Config.bcast_port))
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(('<broadcast>', Config.bcast_port))
 
         while (not self.stop.is_set()):
             try: 
-                message, address = sock.recvfrom(8192)
-                # print "Got data from", address, ":", message
-                self.append(message)
+                # Select idea borrowed from:
+                # http://code.activestate.com/recipes/577278-receive-udp-broadcasts/
+                result = select.select([self.sock],[],[])
+                message = result[0][0].recv(8192)
+
+                if message != None:
+                    print "Message:", message
+                    self.append(message)
 
             except (KeyboardInterrupt, SystemExit):
                 # Unfortunately, in Python, only the main thread receives SIGINT. This is why we use a special terminate flag
