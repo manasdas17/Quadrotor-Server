@@ -1,11 +1,30 @@
-Quadrotor Server: README
-Jeremy 
+Quadrotor Client/Server: Readme
+>> Jeremy Nash <<
+August 7, 2011
 
-Premise:
-Maintain a server and client model that (1) reads serial data from the quadrotor (over some serial protocol) and broadcasts the serial messages via UDP to any number of listening clients on other computers and (2) accept UDP requests from any number of clients and send these messages to the quadrotor.
+>> Premise:
+The goal is to have any number of computers receive and send messages to the quadrotor. In fact, any device that communicates over serial should play nice with this software.
 
-The architecture of this software is non-trivial: serial read calls block, and so do socket recv calls. Therefore, the architecture uses threading to acheive parallelism. 
+>> Quadrotor Server:
+The server runs two threads: (1) SerialThread receives messages from serial (the quadrotor and broadcasts UDP packets over the WiFi connection, and (2) NetworkThread receives incoming UDP packets from the other computers and writes their messages to serial.
 
+>> Quadrotor Client:
+The client holds the all-important Quadrotor object: clients can send and receive dictionaries of values from the quadrotor.
 
+# Pop the top message off of the message queue, in dictionary form.
+d = quadrotor.pop()
+{'x':452, 'y':234, 'z':687}
+
+# Send a dictionary of values to the quadrotor.
+d = {'motor_a': 420, 'motor_b':632}
+quadrotor.send(d)
+
+Clients can also register asynchronous callbacks:
+
+def callback():
+    print "Message received!"
+quadrotor.register_callback(callback)
+
+Inside Quadrotor, we maintain a thread-safe MessageQueue. A network thread continuously appends new UDP broadcast messages to the queue in a thread-safe manner; clients need not worry about locking before popping messages off of the queue.
 
 
