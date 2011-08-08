@@ -28,7 +28,7 @@ class NetworkThread:
             try: 
                 # Can we add a timeout here?
                 message, address = self.sock.recvfrom(8192)
-                print "Got data from", address, ":", message
+                print "Received data from", address, ":", message
                 self.ser.write(message)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -74,6 +74,16 @@ class SerialThread:
         print "Serial thread terminated."
 
 if __name__ == "__main__":
+    print
+    print "     _/_/        _/_/_/  _/_/_/_/  _/_/_/    _/      _/   "
+    print "  _/    _/    _/        _/        _/    _/  _/      _/    "
+    print " _/  _/_/      _/_/    _/_/_/    _/_/_/    _/      _/     "
+    print "_/    _/          _/  _/        _/    _/    _/  _/        "
+    print " _/_/  _/  _/_/_/    _/_/_/_/  _/    _/      _/           "
+    print
+    print "Jeremy Nash"
+    print "nashj@umich.edu"
+    print 
     # Set up serial connection
     try:
         ser = serial.Serial(Config.tty, Config.baudrate)

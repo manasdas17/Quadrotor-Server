@@ -8,7 +8,7 @@ class Client:
     def __init__(self):
         # Set up quadrotor
         self.qrotor = Quadrotor()
-        self.qrotor.register_callback(self.callback)
+        # self.qrotor.register_callback(self.callback)
 
         # Set up threading
         self.thread = threading.Thread(target=self.run)
@@ -38,5 +38,14 @@ class Client:
 
 
 if __name__ == "__main__":
+    print "     _/_/        _/_/_/  _/        _/_/_/  _/_/_/_/  _/      _/  _/_/_/_/_/   "
+    print "  _/    _/    _/        _/          _/    _/        _/_/    _/      _/        "
+    print " _/  _/_/    _/        _/          _/    _/_/_/    _/  _/  _/      _/         "
+    print "_/    _/    _/        _/          _/    _/        _/    _/_/      _/          "
+    print " _/_/  _/    _/_/_/  _/_/_/_/  _/_/_/  _/_/_/_/  _/      _/      _/          "
+    print
+    print "Jeremy Nash"
+    print "nashj@umich.edu"
+    print
     client = Client()
     main_loop(client)

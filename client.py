@@ -122,20 +122,27 @@ def Quadrotor(): return _quadrotor
 
 class Client:
     def __init__(self):
+        # Set up quadrotor
         self.qrotor = Quadrotor()
+        self.qrotor.register_callback(self.callback)
+
+        # Set up threading
         self.thread = threading.Thread(target=self.run)
         self.daemon = True
         self.stop = threading.Event()
         self.thread.start()
 
+    def callback(self):
+        print "Msg received!"
+
     def run(self):
-        print "Thread started"
         counter = 0
+        # Pop the top serial message from the quadrotor, wait one second, write the same message back, then wait another second.
         while (not self.stop.is_set()):
             x = self.qrotor.pop()
-            print x
+            print "Received: ", x
             time.sleep(1)
-            self.qrotor.send(str(counter) + ": " + x)
+            self.qrotor.send(x)
             time.sleep(1)
             counter += 1
 
@@ -162,14 +169,7 @@ if __name__ == "__main__":
     # Infinite loop while quadrotor is running.
     # Note: It is difficult to end python threads gracefully, ESPECIALLY when the threads on blocking on I/O. 
     # Unfortunately, we have to Ctrl-Z when server is not running, but Ctrl-C will work when server is up, thanks to terminate calls. This is because only the main thread receives Ctrl-C
+    main_loop(client)
 
-    while 1:
-        try:
-            dummy = None
-        except (KeyboardInterrupt, SystemExit):
-            print "Main thread keyboard interrupt"
-            Quadrotor().terminate()
-            client.terminate()
-            sys.exit()
 
         
