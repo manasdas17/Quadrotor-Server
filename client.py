@@ -123,6 +123,9 @@ class _Quadrotor:
 _quadrotor = _Quadrotor()
 def Quadrotor(): return _quadrotor
 
+# Infinite loop while quadrotor is running.
+# Note: It is difficult to end python threads gracefully, ESPECIALLY when the threads on blocking on I/O. 
+# Unfortunately, we have to Ctrl-Z when server is not running, but Ctrl-C will work when server is up, thanks to terminate calls. This is because only the main thread receives Ctrl-C
 def main_loop(client):
     try:
         while 1:
@@ -132,17 +135,6 @@ def main_loop(client):
         Quadrotor().terminate()
         client.terminate()
         sys.exit()
-
-from myclient import Client
-
-if __name__ == "__main__":
-    # Begin client.
-    client = Client()
-
-    # Infinite loop while quadrotor is running.
-    # Note: It is difficult to end python threads gracefully, ESPECIALLY when the threads on blocking on I/O. 
-    # Unfortunately, we have to Ctrl-Z when server is not running, but Ctrl-C will work when server is up, thanks to terminate calls. This is because only the main thread receives Ctrl-C
-    main_loop(client)
 
 
         

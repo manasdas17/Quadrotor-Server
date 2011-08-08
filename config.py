@@ -3,7 +3,7 @@
 class Config:
     # Serial configuration
     baudrate = 115200
-    tty = '/dev/ttyUSB0'
+    tty = '/dev/ttyUSB1'
     # Port numbers are set arbitrarily high so as not to conflict with established port numbers
     host = ''
     recv_port = 51425
