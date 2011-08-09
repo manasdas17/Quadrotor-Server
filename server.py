@@ -63,7 +63,7 @@ class SerialThread:
 #        while (not self.stop.wait(1)):
         while (not self.stop.is_set()):
             line = self.ser.readline()
-            line = "x 234 y 321 z 330 "
+            # line = "x 234 y 321 z 330 "
             self.sock.sendto(line, ('<broadcast>', Config.bcast_port))
             print "Broadcasting:", line
 
