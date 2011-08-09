@@ -60,9 +60,10 @@ class MessageQueue:
         # Listen for UDP messages from the server
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(('<broadcast>', Config.bcast_port))
+        self.sock.bind(('', Config.bcast_port))
 
-        while (not self.stop.wait(1)):
+#        while (not self.stop.wait(1)):
+        while (not self.stop.is_set()):
             # Select idea borrowed from:
             # http://code.activestate.com/recipes/577278-receive-udp-broadcasts/
             result = select.select([self.sock],[],[])

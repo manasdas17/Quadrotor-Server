@@ -12,8 +12,9 @@ class NetworkThread:
         # We need to create a separate port from our broadcast port, otherwise we receive all of the broadcast messages!
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind(('<broadcast>', Config.recv_port))
-#        self.sock.setblocking(0)
+        # self.sock.bind(('<broadcast>', Config.recv_port))
+        self.sock.bind(('', Config.recv_port))
+        # self.sock.setblocking(0)
 
         # Serial connection
         self.ser = ser
@@ -25,7 +26,8 @@ class NetworkThread:
         self.thread.start()
 
     def run(self):
-        while (not self.stop.wait(1)):
+#        while (not self.stop.wait(1)):
+        while (not self.stop.is_set()):
             # Can we add a timeout here?
             result = select.select([self.sock], [], [])
             message, address = result[0][0].recvfrom(8192)
@@ -58,7 +60,8 @@ class SerialThread:
         self.thread.start()
 
     def run(self):
-        while (not self.stop.wait(1)):
+#        while (not self.stop.wait(1)):
+        while (not self.stop.is_set()):
             line = self.ser.readline()
             line = "x 234 y 321 z 330 "
             self.sock.sendto(line, ('<broadcast>', Config.bcast_port))
