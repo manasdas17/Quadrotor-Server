@@ -27,4 +27,11 @@ quadrotor.register_callback(callback)
 
 Inside Quadrotor, we maintain a thread-safe MessageQueue. A network thread continuously appends new UDP broadcast messages to the queue in a thread-safe manner; clients need not worry about locking before popping messages off of the queue.
 
+>> Running
+Running the server is as simple as:
+./server.py
 
+Likewise for running the client:
+./myclient.py
+
+All configuration is handled in config.py. If you update the values in config.py, make sure to delete the .pyc file. For that purpose, clean.sh deletes all pyc files in the directory.

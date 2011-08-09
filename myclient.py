@@ -22,7 +22,6 @@ class Client:
     def run(self):
         counter = 0
         # Pop the top serial message from the quadrotor, wait one second, write the same message back, then wait another second.
-#        while (not self.stop.wait(1)):
         while (not self.stop.is_set()):
             x = self.qrotor.pop()
             print "Received:",x
